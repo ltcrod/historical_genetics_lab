@@ -1,0 +1,242 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Packages:
+```{r}
+library(readr) ## For loading files
+library(tibble) ## For a 'tidy' data frame or table format
+library(dplyr) ## For data manipulation, will have masked obj
+library(forcats) ## For further data manipulation 
+library(ggplot2) ## For plotting
+```
+
+
+
+Prefixes: 
+```{r}
+wd="/mnt/archgen/users/luca_traverso/Keszthely/emu/KFK_balaton_noSZrel/"
+prefix="KFK_balaton_noSZrel"
+# 
+datafile=paste(wd, prefix, ".emu.names.evec.txt", sep = "")
+aestfile=paste(wd, prefix, "_aes.csv", sep = "")
+qualfile=paste(wd, prefix, ".qual.csv", sep="")
+```
+evec file must be called {prefix}.emu.names.evec.txt
+file with the aesthetics must be named {prefix}_aes.csv
+qual file must be called {prefix}.meta.csv
+
+
+Import data:
+```{r}
+#sep = \t bc of how my emu script works
+data_pca <- read.csv(file = datafile, header = T, sep = "\t")
+data_meta <- read.csv(file = aestfile, header = T, sep = "\t")
+data_qual <- read.csv(file = qualfile, header = T, sep = "\t")
+```
+
+Data manipulation:
+```{r}
+
+SID <- gsub("\\..*","",data_pca$ID)
+data_pca <- cbind(data_pca, SID)
+#combine pivoting "pop" the two datasets
+data_combined_pre <- left_join(data_pca, data_meta) %>% print()
+
+data_combined <- left_join(data_combined_pre, data_qual) %>% print()
+
+data_combined <- data_combined %>%
+  mutate(pop = as_factor(pop)) %>%
+  print()
+```
+
+
+Create vectors for colours and shapes:
+```{r}
+list_colour <- data_combined %>% 
+  select(pop, colorNr) %>% 
+  deframe()
+
+list_shape <- data_combined %>% 
+  select(pop, symbolNr) %>% 
+  deframe()
+
+head(list_colour) 
+```
+
+PC1-2 plot: 
+```{r}
+pdfoutname=paste(prefix,"_","pc1pc2.pdf", sep = "")
+
+#I have to sort this out to loop 
+border= (abs(min(data_pca$pc1)) + abs(max(data_pca$pc1)))/10
+minx= min(data_pca$pc1) - border
+maxx = max(data_pca$pc1) + border
+
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc2, colour = pop, label = SID)) +
+    geom_point() +
+    theme_bw() 
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+pdfoutname=paste(prefix,"_","pc1pc2tags.pdf", sep = "")
+
+#wtags
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc2, colour = pop, label = SID)) +
+    geom_point(size=1, shape = list_shape, fill = list_colour) +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc1pc2_tags.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#check biases
+#contam
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc2, colour = pop, label = mtcontam)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc1pc2_contbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#cov
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc2, colour = pop, label = X1240K_cov)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc1pc2_covbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+
+```
+
+PC2-3 plot: 
+```{r}
+pdfoutname=paste(prefix,"_","pc2pc3.pdf", sep = "")
+
+#I have to sort this out to loop 
+border= (abs(min(data_pca$pc2)) + abs(max(data_pca$pc2)))/10
+minx= min(data_pca$pc2) - border
+maxx = max(data_pca$pc2) + border
+
+ggplot(data = data_combined, 
+       aes(x = pc2, y = pc3, colour = pop, label = SID)) +
+    geom_point() +
+    theme_bw() #+ 
+    #geom_text(hjust=-0.0, vjust=0, check_overlap = F) +
+    #coord_cartesian(xlim = c(minx, maxx))
+
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#wtags
+ggplot(data = data_combined, 
+       aes(x = pc2, y = pc3, colour = pop, label = SID)) +
+    geom_point(size=1, shape = list_shape, fill = list_colour) +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_pc2pc3_tags.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#check biases
+#contam
+ggplot(data = data_combined, 
+       aes(x = pc2, y = pc3, colour = pop, label = mtcontam)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc2pc3_contbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#cov
+ggplot(data = data_combined, 
+       aes(x = pc2, y = pc3, colour = pop, label = X1240K_cov)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc2pc3_covbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+```
+
+PC1-3 plot: 
+```{r}
+pdfoutname=paste(prefix,"_","pc1pc3.pdf", sep = "")
+
+#I have to sort this out to loop 
+border= (abs(min(data_pca$pc1)) + abs(max(data_pca$pc1)))/10
+minx= min(data_pca$pc1) - border
+maxx = max(data_pca$pc1) + border
+
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc3, colour = pop, label = SID)) +
+    geom_point() +
+    theme_bw() #+ 
+    #geom_text(hjust=-0.0, vjust=0, check_overlap = F) +
+    #coord_cartesian(xlim = c(minx, maxx))
+
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#wtags
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc3, colour = pop, label = SID)) +
+    geom_point(size=1, shape = list_shape, fill = list_colour) +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_pc1pc3_tags.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#check biases
+#contam
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc3, colour = pop, label = mtcontam)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc1pc3_contbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+#cov
+ggplot(data = data_combined, 
+       aes(x = pc1, y = pc3, colour = pop, label = X1240K_cov)) +
+    geom_point(size=1, shape = 16, fill = "black") +
+    theme_bw() + 
+    geom_text(hjust=-0.0, vjust=0, check_overlap = F, size = 2) +
+    coord_cartesian(xlim = c(minx, maxx)) 
+
+pdfoutname=paste(prefix,"_","pc1pc3_covbias.pdf", sep = "")
+ggsave(pdfoutname, path = wd, bg = NULL)
+
+```
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

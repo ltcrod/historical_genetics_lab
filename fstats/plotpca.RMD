@@ -1,0 +1,244 @@
+---
+title: "Plot PCA GGR"
+output: html_notebook
+---
+
+Packages:
+```{r setup}
+library("knitr")
+wd ="/mnt/archgen/HistoGenes/analysis/PCA_211018/"
+opts_knit$set(root.dir = wd)
+library(ggplot2)
+```
+
+Set the variables. 
++ fn1=ofn from the pca 
++ fn2=fn for the sampleinfo.csv and ofn of the plotting
+```{r}
+fn1 = "PCA_211018"  ## File prefix
+fn2 = "PCA_211018_batch1_25"  ## File prefix of sampleinfo and ofn
+PCnum = 7  ## # of top PCs to plot
+tag= "_ewPlot_Seminar" ##additional tag for the output, not required
+```
+
+
+The working directory MUST contain: 
+* The _poplist.txt file, a file that has a number of columns equal to the number of PCAs performed, each column containing the list of the pops used to calculate the PCs
+* The _popinfo.csv file, containing all aliases for pops
+* The _sampleinfo.csv file
+
+POPINFO GUIDE: 
+Columns to edit: Mark,Mark.sub
+--> Mark.sub currentl not working :(
+Codes: 0,0 -> dot no tag
+       0,1 -> dot no tag
+       1,0 -> dot and tag
+       1,1 -> dot and tag
+
+Examples for all these files are in `/home/luca_traverso/scripts/Rscripts/plotpca_exmls/` (unupdated)
+```{r}
+setwd(wd)
+pop.list.file = paste(fn1, "_poplist.txt", sep="")
+pop.info.file = paste(fn1, "_popinfo.csv", sep="")
+sample.info.file = paste(fn2, "_sampleinfo.csv", sep="")
+```
+
+Import the data
+```{r}
+## Import a list of populations used for generating PCs
+pop.list = as.matrix(read.table(pop.list.file, header=F,sep = ","))
+
+## Import a list of ancient samples to be renamed/regrouped and to be plotted
+sample.info = read.csv(sample.info.file, header=T,sep=",")
+
+## import population code and generate random colors for each language family
+popdata = read.csv(pop.info.file, header=T, sep = ",")
+pops = as.vector(popdata$Pop.new)
+pnames = as.vector(popdata$Pop.new)
+popcode = as.vector(popdata$Symbol)
+popLFs = as.vector(popdata$LF)
+
+LFnames = sort(unique(popLFs))
+set.seed(6602)
+rgbcolvec = matrix(sample(0:255, length(LFnames)*3, replace=T), ncol=3, byrow=T)
+LFcols = rgb(rgbcolvec[,1], rgbcolvec[,2], rgbcolvec[,3], maxColorValue=255)
+evals = read.table(gzfile(paste(fn1, ".eval.txt.gz", sep="")), header=F) ## Import eigenvalue information
+```
+
+
+
+##Plotting
+
+```{r}
+for (l in 1:ncol(evals)) {
+#if(l==3) {next}
+
+num = l  ## repeat the entire script from 1 to ncol(pop.list)
+print(l)
+
+fname = paste(wd, fn1, "_", num, ".evec.txt.gz", sep="")
+
+## Import data and change group labels for2 Avars to "PannonianAvar"
+data = read.table(gzfile(fname), header=T)
+
+## Update PID/IID of the listed samples
+tsm.nums = c()
+for (iid in as.vector(sample.info$IID)) tsm.nums = c(tsm.nums, which(as.vector(data$ID) == iid))
+
+tpv1 = as.vector(data$pop); tpv1[tsm.nums] = as.vector(sample.info$PID.new)
+tpv2 = as.vector(data$ID); tpv2[tsm.nums] = as.vector(sample.info$IID.new)
+data = data.frame(tpv1, tpv2, data[,-1*(1:2)])
+names(data)[1:2] = c("pop", "ID")
+label.fv1 = tsm.nums[as.vector(sample.info$Mark) == 1]
+
+pops.in = as.vector(as.matrix(pop.list[,num]))
+pops.in = pops.in[!is.na(pops.in)]
+
+## Mark individuals included in the calculation
+## and generate individual vectors for color and two-letter codes
+filvec = rep(F, nrow(data))
+for (pn in 1:length(pops.in)) filvec[as.vector(data$pop) == pops.in[pn]] = T
+
+popcodevec = rep(NA, nrow(data))
+colvec = rep(NA, nrow(data))
+for (pn in 1:length(pops)) {
+  tnum1 = which(LFnames == popLFs[pn])
+  popcodevec[as.vector(data$pop) == pops[pn]] = popcode[pn]
+  colvec[as.vector(data$pop) == pops[pn]] = LFcols[tnum1]
+}
+
+
+
+## Generate a legend vector
+lgv = c(); lgcv = c()
+for (i in 1:length(pops)) {
+  if (pops[i] %in% pops.in) {
+    lgv = c(lgv, paste(popcode[i], pnames[i]))
+    lgcv = c(lgcv, LFcols[LFnames == popLFs[i]])
+  }
+}
+
+## Generate a legend vector for language groups (color code)
+
+gr.lgv = c(); gr.lgcv = c()
+for (i in 1:length(pops)) {
+  if (pops[i] %in% pops.in) {
+    if (!(popLFs[i] %in% gr.lgv)) {
+      gr.lgv = c(gr.lgv, popLFs[i])
+      gr.lgcv = c(gr.lgcv, LFcols[LFnames == popLFs[i]])
+    }
+  }
+}
+gr.lgv.ord = order(gr.lgv)
+gr.lgcv = gr.lgcv[gr.lgv.ord]
+gr.lgv = gr.lgv[gr.lgv.ord]
+
+
+
+
+
+
+
+
+#Define ancient groups to be plotted
+aps = unique(as.vector(sample.info$PID.new))
+## aps = sort(aps)
+als = gsub("Hovsgol", "Khovsgol", gsub(".SG", "", aps))
+
+
+#Plotting
+## rgbcolors = grDevices::colors()[grep('gr(a|e)y', grDevices::colors(), invert = T)]
+## set.seed(702203)
+## acols = sample(rgbcolors, 200)
+acols = c("red","green","lavender","brown", "yellow","blue","orange",
+          "magenta","beige","darkseagreen3","deepskyblue3","pink",
+          "maroon","purple", "cyan","darkolivegreen1",
+          "pink", "aquamarine4", "aquamarine1", 
+          "darkgoldenrod2", "coral", "navy", "grey", "black")
+acols = rep(acols, 10)
+apchs = rep(c(21:25),30)
+
+a.fv = c(); a.cv = c(); a.pchv = c()
+for (an in 1:length(aps)) {
+  tfv1 = which(as.vector(data$pop) == aps[an])
+  a.fv = c(a.fv, tfv1)
+  a.cv = c(a.cv, rep(acols[an], length(tfv1)))
+  a.pchv = c(a.pchv, rep(apchs[an], length(tfv1)))
+}
+filvec2 = c(which(filvec), a.fv)
+
+pvs = as.vector(as.matrix(evals[,num]))
+pvs = pvs[!is.na(pvs)]; pvs = pvs / sum(pvs) * 100
+pvs2 = paste(round(pvs, digits=2), "%")
+
+
+data$pc1=-data$pc1
+if (l == 6) {
+	data$pc2=-data$pc2
+}
+pdf.name = paste(fn2, "_", num, tag,".pdf", sep="")
+pdf(pdf.name, height=14, width=13, colormodel="cmyk")
+par(cex.lab=1.7, cex.axis=1.7, cex.main=2)
+mm = cbind(c(1,3),c(2,3)); layout(mm, widths=c(9,4), heights=c(8.5,5.5))
+
+for (i in 1:3) {
+  for (j in (i+1):4) {
+    x1 = min(data[filvec2, i+2]); x2 = max(data[filvec2, i+2]); xmin = x1 - (x2-x1)*0.05; xmax = x2 + (x2-x1)*0.05
+    y1 = min(data[filvec2, j+2]); y2 = max(data[filvec2, j+2]); ymin = y1 - (y2-y1)*0.05; ymax = y2 + (y2-y1)*0.05
+
+    xlabvec = paste("PC ", i, " (", pvs2[i], ")", sep="")
+    ylabvec = paste("PC ", j, " (", pvs2[j], ")", sep="")
+
+    par(mar=c(5.1, 5.1, 1.1, 1.1))
+    plot(c(x1,x2), c(y1,y2), type="n", xlab=xlabvec, ylab=ylabvec, cex=1.5)
+    text(x=data[filvec,i+2], y=data[filvec,j+2], labels=popcodevec[filvec], col=alpha(colvec[filvec],0.5), font=2, cex=0.8)
+    points(data[a.fv,i+2], y=data[a.fv,j+2], pch=a.pchv, bg=a.cv, cex=1)
+    text(x=data[label.fv1,i+2], y=data[label.fv1,j+2], label=as.vector(data$ID)[label.fv1], font=2, cex=0.2, pos=2)
+    if (num == 5 & i == 1 & j == 2) {
+      legend("bottomleft", title="Moderns by language family", legend=gr.lgv, text.col=gr.lgcv, ncol=3, bty="n", text.font=2, cex=1.2)
+    }
+
+    par(mar=c(5.1, 0.1, 1.1, 0.1))
+    plot(c(0,1),c(0,1), type="n", xaxt="n", yaxt="n", xlab="", ylab="", bty="n")
+    legend("topleft", title="Ancients", legend=als, pch=apchs, pt.bg=acols, text.font=2, cex=1.2, y.intersp=1.05, ncol=1, bty="n")
+
+    plot(c(0,1),c(0,1), type="n", xaxt="n", yaxt="n", xlab="", ylab="", bty="n")
+    legend("top", legend=lgv, text.col=lgcv, ncol=6, bty="n", text.font=2)
+
+  }
+}
+dev.off()
+
+pdf.name = paste(fn2, "_", num, tag,"_bg.pdf", sep="")
+pdf(pdf.name, height=14, width=13, colormodel="cmyk")
+par(cex.lab=1.7, cex.axis=1.7, cex.main=2)
+mm = cbind(c(1,3),c(2,3)); layout(mm, widths=c(9,4), heights=c(8.5,5.5))
+
+for (i in 1:3) {
+  for (j in (i+1):4) {
+    x1 = min(data[filvec2, i+2]); x2 = max(data[filvec2, i+2]); xmin = x1 - (x2-x1)*0.05; xmax = x2 + (x2-x1)*0.05
+    y1 = min(data[filvec2, j+2]); y2 = max(data[filvec2, j+2]); ymin = y1 - (y2-y1)*0.05; ymax = y2 + (y2-y1)*0.05
+
+    xlabvec = paste("PC ", i, " (", pvs2[i], ")", sep="")
+    ylabvec = paste("PC ", j, " (", pvs2[j], ")", sep="")
+
+    par(mar=c(5.1, 5.1, 1.1, 1.1))
+    plot(c(x1,x2), c(y1,y2), type="n", xlab=xlabvec, ylab=ylabvec, cex=1.5)
+    text(x=data[filvec,i+2], y=data[filvec,j+2], labels=popcodevec[filvec], col="grey80", font=2, cex=1.0)
+    points(data[a.fv,i+2], y=data[a.fv,j+2], pch=a.pchv, bg=a.cv, cex=1)
+    text(x=data[label.fv1,i+2], y=data[label.fv1,j+2], label=as.vector(data$ID)[label.fv1], font=2, cex=0.4, pos=2)
+
+    par(mar=c(5.1, 0.1, 1.1, 0.1))
+    plot(c(0,1),c(0,1), type="n", xaxt="n", yaxt="n", xlab="", ylab="", bty="n")
+    #legend("topleft", title="tv=TransversionOnly", legend=als, pch=apchs, pt.bg=acols, text.font=2, cex=1.2, y.intersp=1.05, ncol=2, bty="n")    
+    legend("topleft", title="", legend=als, pch=apchs, pt.bg=acols, text.font=2, cex=1.2, y.intersp=1.05, ncol=1, bty="n")
+
+    plot(c(0,1),c(0,1), type="n", xaxt="n", yaxt="n", xlab="", ylab="", bty="n")
+    legend("top", legend=lgv, text.col=lgcv, ncol=6, bty="n", text.font=2)
+  }
+}
+dev.off()
+
+
+}
+```

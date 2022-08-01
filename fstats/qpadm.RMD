@@ -1,0 +1,143 @@
+---
+title: "Keszthely Fstatistic analyses"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+## PREPARATION OF THE FILES
+## COMMON TO ALL THE STEPS (almost)
+
+First, lets load the libraries
+```{r}
+library(admixtools)
+library(ggplot2)
+library(tidyverse)
+```
+
+Create the variables
+
+This is the only one to edit:
+```{r}
+pref = "kesz_REFS"
+fn_f2pops = "pops_f2"
+```
+
+result <- f4(f2_blocks, pop1, pop2, pop3, leftpopsf4)
+
+
+Now it prepares the other variables and the dir structure
+```{r}
+date <- Sys.Date()
+dir="/mnt/archgen/users/luca_traverso/Keszthely/"
+dsdir = paste(dir, "dataset/", sep="")
+prefix = paste(dsdir, pref, "/", sep="")
+my_f2_dir = paste(prefix, "/F2/", sep="")
+dir.create(dsdir, showWarnings = FALSE)
+dir.create(prefix, showWarnings = FALSE)
+dir.create(my_f2_dir, showWarnings = FALSE)
+
+f2_subs = paste(dir, "dataset/", pref, "/", fn_f2pops, sep="")
+f2_check = paste(dir, "dataset/", pref, "/", fn_f2pops, "_c.txt", sep="")
+cmd_f2subs = paste("cp ", f2_subs, " ", f2_check, sep="")
+system(cmd_f2subs)
+
+qpadmdir = paste(dir, "qpadm/", sep="")
+outqpadm = paste(qpadmdir, date, "_", pref, "/", sep="")
+dir.create(qpadmdir, showWarnings = FALSE)
+dir.create(outqpadm, showWarnings = FALSE)
+
+F4dir= paste(dir, "F4/", sep="")
+outF4 = paste(F4dir, date, "_", pref, "/", sep="")
+dir.create(F4dir, showWarnings = FALSE)
+dir.create(outF4, showWarnings = FALSE)
+
+F3dir= paste(dir, "F3/", sep="")
+outF3 = paste(F3dir, date, "_", pref, "/", sep="")
+dir.create(F3dir, showWarnings = FALSE)
+dir.create(outF3, showWarnings = FALSE)
+
+
+PCAdir= paste(dir, "PCA/", sep="")
+outPCA = paste(PCAdir, date, "_", pref, "/", sep="")
+dir.create(PCAdir, showWarnings = FALSE)
+dir.create(outPCA, showWarnings = FALSE)
+```
+
+
+
+Prepare the F2. 
+```{r}
+if (file.exists(f2_check))
+  print(f2_check)
+  popsf2 <- scan(f2_check, what="", sep="\n")
+  extract_f2("/mnt/archgen/users/luca_traverso/Keszthely/dataset/kesz_REFS/kesz_REFS", my_f2_dir, pops = popsf2, maxmiss = 0.30)
+else
+  extract_f2(prefix, my_f2_dir)
+
+
+f2_blocks = f2_from_precomp(my_f2_dir)
+```
+
+
+
+### F4 statistics
+
+Change left pops and right pops based on what you need.
+pop1,2 = left
+pop3, leftpopsf4 = right
+In this case, I am rotating one of the outgroups. 
+**EDIT HERE**
+```{r}
+pop1="Szolad"
+pop2="Libiva"
+pop3="Onge.DG"
+leftpopsf4=c("Pohansko","Venosa","Etruscan","Italy_Imperial.SG","Taiwan_Hanben","Hungary_Sarmatian_Transtisza","Tianyuan","Russia_Ingria_IA.SG","West_Africa_ancient","Ami.DG","Boisman_MN","Czech_BellBeaker","DanubeTisza_early","DanubeTisza_late","DevilsCave_N.SG","Estonia_IA.SG","Germany_EMedieval.SG","Gonur1_BA","Iberia_BellBeaker","Israel_C","Italy_Medieval_EarlyModern_oCentralEuropean.SG","Italy_Medieval_EarlyModern.SG","Japan_Jomon","Kenya_Kakapel_3900BP","Kolyma_M.SG","Libiva_slav","Mbuti.DG","Mixe.DG","NE_Iberia_c.6-8CE_ES","NE_Iberia_c.8-12CE","NE_Iberia_RomP","Onge.DG","Peru_Lauricocha_8600BP","Russia_Bolshoy","Russia_MLBA_Sintashta","Sardinia_BA","Udegram_IA","Ukraine_Neolithic","Ulaanzuukh_SlabGrave","YR_LN")
+```
+
+
+Perform the F4 calculation 
+```{r}
+result <- f4(f2_blocks, pop1, pop2, pop3, leftpopsf4)
+```
+
+Plot the F4. 
+In R:
+```{r}
+title=paste(pop1,", ",pop2,"; ",pop3,", test", sep="")
+
+ggplot(result, aes(fct_reorder(leftpopsf4, est), est, color = abs(z) > 2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = est - se, ymax = est + se)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(y = "est", x = "test") +
+  ggtitle(title) +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+```
+
+As a pdf: 
+```{r}
+pdf.name = paste(outF4, pop3, "_OG.pdf", sep="")
+pdf(pdf.name, height=10, width=20, colormodel="cmyk")
+
+ggplot(result, aes(fct_reorder(leftpopsf4, est), est, color = abs(z) > 2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = est - se, ymax = est + se)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(y = "est", x = "test") +
+  ggtitle(title) +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+dev.off()
+
+pdfjoincommand = paste("pdfunite ", outF4, "*.pdf ", outF4, date, "_F4.pdf", sep = "")
+
+system(pdfjoincommand)
+```
+
+
+
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

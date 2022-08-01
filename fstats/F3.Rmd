@@ -1,0 +1,115 @@
+---
+title: "F3 notebook"
+output: html_notebook
+---
+
+Variables:
+```{r}
+tag = "GG_PD"
+wd = "/mnt/archgen/users/luca_traverso/Keszthely/F3/"
+
+#mother dataset
+dsname = "kesz_REFS.norel.nobrtt.2"
+md = "/mnt/archgen/users/luca_traverso/Keszthely/dataset/kesz_REFS.norel.nobrtt2/"
+prefix = paste(md, dsname, sep="")
+
+pop1 = "Kesz_GG"
+pop2 = "Kesz_PD"
+testpops <- c("EHG","Hungary_Hun_Elite_IA", "Hungary_Langobard","Norway_Viking.SG","Sweden_Viking.SG","Italy_Imperial.SG",
+"China_Xinjian_IA.SG","Pohansko","Libiva","Libiva_slav","Spain_Medieval", "Spain_Roman","Tajikistan_Ksirov_Kushan","Venosa","WHG",
+"Germany_EarlyMedieval.SG","Germany_EarlyMedieval_Alemanic_Langobardian","Germany_EarlyMedieval_Alemanic_Byzantine","Mbuti.DG")
+trident="/home/luca_traverso/scripts/./trident-Linux"
+```
+
+```{r}
+library(admixtools)
+library(ggplot2)
+library(tidyverse)
+outdir=paste(wd,"outdir/", sep="")
+subsname=paste(dsname,".",tag, ".subs", sep="")
+prefsub <- paste(wd, subsname, sep="")
+my_f2_dir = paste(prefsub,"_F2_","/",sep="")
+dir.create(my_f2_dir)
+dir.create(wd)
+dir.create(outdir)
+prefout=paste(outdir, dsname, sep="")
+```
+
+
+```{r}
+setwd(wd)
+pops2extr <- c(pop1, pop2, testpops)
+
+write.table(as.data.frame(pops2extr), file='forgefile.txt'  , append= F, sep='\n', row.names = F , quote = F, col.names = F)
+
+cmd=paste(trident," forge -p ", prefix,".geno --forgeFile forgefile.txt --onlyGeno --outFormat EIGENSTRAT -o . -n ",subsname, sep = "")
+system(cmd)
+
+my_f2_dir = paste(prefsub, "_F2_",tag,"/", sep = "")
+
+```
+
+Calc F2
+```{r}
+my_f2_dir = paste(prefsub, "_F2_",tag,"/", sep = "")
+extract_f2(prefsub, my_f2_dir)
+```
+
+Load F2 blocks
+```{r}
+my_f2_dir = paste(prefsub, "_F2_",tag,"/", sep = "")
+f2_blocks = f2_from_precomp(my_f2_dir)
+```
+
+
+
+F3
+```{r}
+setwd(wd)
+nsnps="32964"
+result <- f3(f2_blocks, testpops, pop2, pop1)
+```
+
+
+
+plot in R
+```{r}
+title=paste("test","; ",pop1,"  ,  ",pop2, sep="")
+snpslab= paste(nsnps, "SNPs", sep=" ")
+
+ggplot(result, aes(fct_reorder(testpops, est), est, color = abs(z) > 3)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = est - se, ymax = est + se)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(y = "est", x = "test") +
+  ggtitle(title) +
+  annotate('text', label=snpslab, x=-Inf, y=Inf, hjust=0, vjust=1) +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+```
+
+as pdf
+```{r}
+setwd(wd)
+pdf.name = paste(prefout, "_", tag,"_OGF3.pdf", sep="")
+pdf(pdf.name, height=10, width=20, colormodel="cmyk")
+snpslab= paste(nsnps, "SNPs", sep=" ")
+
+
+
+ymins <- (result$est - result$se)
+result2 <- result
+result2 <- cbind(result, ymins)
+
+ggplot(result2, aes(fct_reorder(testpops, ymins), est, color = abs(z) > 3)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = est - se, ymax = est + se)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  labs(y = "|est|", x = "test") +
+  ggtitle(title) +
+  annotate('text', label=snpslab, x=-Inf, y=Inf, hjust=0, vjust=1) +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+dev.off()
+
+```
+

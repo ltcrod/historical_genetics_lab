@@ -1,0 +1,103 @@
+---
+title: "plotadmix"
+output: html_notebook
+---
+
+Variables
+```{r}
+wd ="/mnt/archgen/users/luca_traverso/Keszthely/Admixture/Supervised/more_filter/" #with ending /
+prefix="subs_AntonioLike_3.09"
+K="6"
+popgroupsfile="/mnt/archgen/users/luca_traverso/Keszthely/Admixture/Supervised/more_filter/popGroups.txt"
+tag="K6_supervised"
+```
+
+
+
+```{r}
+library("knitr")
+opts_knit$set(root.dir = wd)
+library(ggplot2)
+```
+
+```{r}
+qfile=paste(wd, prefix, ".", K, ".Q", sep="")
+pfile=paste(wd, prefix, ".", K, ".Q", sep="")
+logfile=paste(wd, prefix, ".", K, ".log", sep="")
+indfile="test"
+```
+
+
+plot in R
+```{r}
+Vtop=paste("V",K,sep="")
+
+tbl=read.table(qfile)
+indTable = read.table(indfile,
+               col.names = c("Sample", "Sex", "Pop"))
+popGroups = read.table(popgroupsfile, col.names=c("Pop", "PopGroup"))
+
+mergedAdmixtureTable = cbind(tbl, indTable)
+mergedAdmWithPopGroups = merge(mergedAdmixtureTable, popGroups, by="Pop")
+ordered = mergedAdmWithPopGroups[order(mergedAdmWithPopGroups$PopGroup),]
+barplot(t(as.matrix(subset(ordered, select=V1:V5))), col=rainbow(K), border=NA)
+
+barNaming <- function(vec) {
+    retVec <- vec
+    for(k in 2:length(vec)) {
+        if(vec[k-1] == vec[k])
+            retVec[k] <- ""
+    }
+    return(retVec)
+}
+
+par(mar=c(10,4,4,4))
+barplot(t(as.matrix(ordered[,2:7])), col=rainbow(6), border=NA,
+        names.arg=barNaming(ordered$PopGroup), las=2)
+
+```
+
+
+save as PDF
+```{r}
+Vtop=paste("V",K,sep="")
+
+pdf.name = paste(wd, prefix, "_", tag,".ADMIX.pdf", sep="")
+pdf(pdf.name, height=10, width=60, colormodel="cmyk")
+Klab= paste(K, "K", sep=" ")
+
+
+tbl=read.table(qfile)
+indTable = read.table(indfile,
+               col.names = c("Sample", "Sex", "Pop"))
+popGroups = read.table(popgroupsfile, col.names=c("Pop", "PopGroup"))
+
+mergedAdmixtureTable = cbind(tbl, indTable)
+mergedAdmWithPopGroups = merge(mergedAdmixtureTable, popGroups, by="Pop")
+ordered = mergedAdmWithPopGroups[order(mergedAdmWithPopGroups$PopGroup),]
+
+sourcepops = c("Anatolia_N", "WHG", "Morocco_EN", "Morocco_HG", "Iran_N", "EHG")
+
+m1_sources <-mergedAdmWithPopGroups[mergedAdmWithPopGroups$PopGroup %in% sourcepops, ]
+
+m2_not_sources <- mergedAdmWithPopGroups[!mergedAdmWithPopGroups$PopGroup %in% sourcepops, ]
+
+
+mergedAdmWithPopGroups <- rbind(m1_sources,m2_not_sources)
+
+barNaming <- function(vec) {
+    retVec <- vec
+    for(k in 2:length(vec)) {
+        if(vec[k-1] == vec[k])
+            retVec[k] <- ""
+    }
+    return(retVec)
+}
+
+par(mar=c(10,10,4,4))
+barplot(t(as.matrix(subset(ordered, select=V1:V6))), col=rainbow(K),width = 3, xlim = c(0,2000), border=NA, names.arg=barNaming(ordered$PopGroup), las=2, cex.names=.5)
+
+
+dev.off()
+```
+
