@@ -1,0 +1,5 @@
+Description:	Modern european-only panel distinguishing baltic diversity from north-western european one 
+Datasets:	1240K, NL, POPRES, ...?
+Special_Filtering:	include only overlapping SNPs, exclude high LD regions, ...?
+Exclude regions:	/mnt/archgen/users/gretzinger/Datasets/PCA_Test/LDregion.txt
+Exclude individuals:	/mnt/archgen/HistoGenes/analysis/PCA_231013/out_ind.txt
